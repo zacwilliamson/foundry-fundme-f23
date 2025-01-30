@@ -11,7 +11,11 @@ contract FundMeTest is Test {
         fundMe = new FundMe();
     }
 
-    function testMinimumDollarIsFive() public {
+    function testMinimumDollarIsFive() public view {
         assertEq(fundMe.MINIMUM_USD(), 5 * 10 ** 18);
+    }
+
+    function testOwnerIsMsgSender() public view {
+        assertEq(fundMe.i_owner(), address(this));
     }
 }
