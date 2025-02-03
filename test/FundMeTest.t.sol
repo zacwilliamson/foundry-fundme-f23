@@ -10,6 +10,7 @@ contract FundMeTest is Test {
     address USER = makeAddr("user");
     uint256 constant SEND_VALUE = 0.1 ether;
     uint256 constant STARTING_BALANCE = 10 ether;
+    uint256 constant GAS_PRICE = 1;
 
     function setUp() external {
         DeployFundMe deployFundMe = new DeployFundMe();
@@ -70,8 +71,15 @@ contract FundMeTest is Test {
         uint256 startingOwnerBalance = fundMe.getOwner().balance;
 
         // Act
-        vm.prank(fundMe.getOwner());
+        // gasLeft() is a built-in Solidity function that returns the amount of gas left in the current transaction
+        // uint256 gasStart = gasleft(); // 1000
+        // vm.txGasPrice(GAS_PRICE);
+        vm.prank(fundMe.getOwner()); // c: 200
         fundMe.withdraw();
+
+        // uint256 gasEnd = gasleft(); // c: 800
+        // uint256 gasUsed = (gasStart - gasEnd) * tx.gasprice;
+        // console.log(gasUsed);
 
         // Assert
         uint256 endingFundMeBalance = address(fundMe).balance;
@@ -83,6 +91,9 @@ contract FundMeTest is Test {
             endingOwnerBalance
         );
     }
+
+    // forge snapshot --mt testWithdrawFromMultipleFunders
+    // generates file that gives estimated amount of gas to test function
 
     function testWithdrawFromMultipleFunders() public funded {
         // if you want to generate numbers for addresses, they have to be uint160
@@ -99,6 +110,31 @@ contract FundMeTest is Test {
 
             vm.startPrank(fundMe.getOwner());
             fundMe.withdraw();
+            vm.stopPrank();
+
+            assertEq(address(fundMe).balance, 0);
+            assertEq(
+                startingFundMeBalance + startingOwnerBalance,
+                fundMe.getOwner().balance
+            );
+        }
+    }
+
+    function testWithdrawFromMultipleFundersCheaper() public funded {
+        // if you want to generate numbers for addresses, they have to be uint160
+        uint160 numberOfFunders = 10;
+        uint160 startingFunderIndex = 2;
+
+        for (uint160 i = startingFunderIndex; i < numberOfFunders; i++) {
+            // hoax comes in forges standart lib and is a combination of prank/deal
+            hoax(address(i), SEND_VALUE);
+            fundMe.fund{value: SEND_VALUE}();
+
+            uint256 startingOwnerBalance = fundMe.getOwner().balance;
+            uint256 startingFundMeBalance = address(fundMe).balance;
+
+            vm.startPrank(fundMe.getOwner());
+            fundMe.cheaperWithdraw();
             vm.stopPrank();
 
             assertEq(address(fundMe).balance, 0);
